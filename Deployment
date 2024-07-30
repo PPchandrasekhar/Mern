@@ -1,0 +1,5 @@
+Deployment
+Host Backend: Use Heroku, AWS, or any preferred cloud provider.
+Host Frontend: Deploy on platforms like Netlify or Vercel.
+Database: Use managed databases or set up on a cloud provider.
+Continuous Integration/Continuous Deployment (CI/CD): Set up pipelines for automated testing and deployment.
