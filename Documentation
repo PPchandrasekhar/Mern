@@ -1,0 +1,4 @@
+4. Documentation
+Code Documentation: Comment the codebase and ensure clean, readable code.
+README.md: Provide setup instructions, project overview, and deployment guide.
+API Documentation: Use Swagger or similar tools to document API endpoints.
