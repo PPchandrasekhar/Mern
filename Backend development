@@ -1,0 +1,274 @@
+a. Setup
+
+1. Initialize Node.js Project
+Navigate to your project directory and run the following command to create a package.json file:
+
+npm init -y
+This command initializes a Node.js project with default settings.
+
+2. Install Dependencies
+Next, install the necessary dependencies. The main packages include Express for building the server, Mongoose for interacting with MongoDB, JWT for authentication, bcrypt for password hashing, and others for middleware and testing.
+
+npm install express mongoose bcryptjs jsonwebtoken body-parser cors dotenv morgan
+npm install --save-dev mocha chai
+Express: Web framework for Node.js.
+Mongoose: MongoDB object modeling tool.
+Bcrypt: Library for hashing passwords.
+JWT (jsonwebtoken): Library for generating and verifying JSON Web Tokens.
+Body-parser: Middleware for parsing incoming request bodies.
+Cors: Middleware for enabling CORS (Cross-Origin Resource Sharing).
+Dotenv: Module for loading environment variables from a .env file.
+Morgan: HTTP request logger middleware.
+Mocha: Test framework.
+Chai: Assertion library for testing.
+
+3. Basic Server Setup
+server.js (Main Server File)
+
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const morgan = require('morgan');
+require('dotenv').config();
+
+const app = express();
+
+// Middleware setup
+app.use(bodyParser.json());
+app.use(cors());
+app.use(morgan('dev'));
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useCreateIndex: true,
+  useFindAndModify: false
+})
+.then(() => console.log('MongoDB connected'))
+.catch(err => console.error(err));
+
+// Basic route for testing
+app.get('/', (req, res) => {
+  res.send('API is running...');
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+4. Environment Variables
+Create a .env file in the root of your project to store sensitive information like your MongoDB URI and JWT secret key.
+
+.env
+
+MONGO_URI=mongodb://localhost:27017/blog
+JWT_SECRET=your_secret_key
+
+
+5. Testing Setup
+To set up testing with Mocha and Chai, you can create a test directory and add your test files there. An example test file could look like this:
+
+test/example.test.js
+
+const chai = require('chai');
+const chaiHttp = require('chai-http');
+const server = require('../server');
+const should = chai.should();
+
+chai.use(chaiHttp);
+
+describe('Example Test', () => {
+  it('it should GET /', (done) => {
+    chai.request(server)
+      .get('/')
+      .end((err, res) => {
+        res.should.have.status(200);
+        res.text.should.be.eql('API is running...');
+        done();
+      });
+  });
+});
+
+To run the tests, you can add a script to your package.json:
+
+"scripts": {
+  "start": "node server.js",
+  "test": "mocha"
+}
+
+
+npm test
+
+
+
+database design:-
+
+1. User Schema
+The User schema includes fields for username, email, password, and role. It also uses a pre-save hook to hash passwords before storing them.
+
+models/User.js
+
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const UserSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'author', 'reader'],
+    default: 'reader',
+  },
+}, { timestamps: true });
+
+// Hash the password before saving the user model
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
+
+module.exports = mongoose.model('User', UserSchema);
+
+
+2. Post Schema
+The Post schema includes fields for title, content, author, status, and timestamps for creation and updates. The author field references the User model.
+
+models/Post.js
+
+const mongoose = require('mongoose');
+
+const PostSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'published'],
+    default: 'draft',
+  },
+}, { timestamps: true });
+
+module.exports = mongoose.model('Post', PostSchema);
+
+
+3. Comment Schema
+The Comment schema includes fields for post, author, content, and timestamps. The post and author fields reference the Post and User models, respectively.
+
+models/Comment.js
+
+const mongoose = require('mongoose');
+
+const CommentSchema = new mongoose.Schema({
+  post: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    required: true,
+  },
+  author: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+}, { timestamps: true });
+
+module.exports = mongoose.model('Comment', CommentSchema);
+
+
+4. Setting Up Relationships
+User and Post Relationship: The author field in the Post schema is a reference to the User model, indicating which user created the post.
+Post and Comment Relationship: The post field in the Comment schema references the Post model, linking each comment to a specific post. The author field in the Comment schema links the comment to the User model, indicating which user made the comment.
+5. Additional Considerations
+Validation: You can add additional validation rules to ensure data integrity, such as requiring a minimum length for content or unique usernames and emails.
+Indexes: Consider adding indexes to frequently queried fields like username, email, and title to improve query performance.
+Timestamps: The { timestamps: true } option in each schema automatically adds createdAt and updatedAt fields to documents.
+This setup provides a solid foundation for the data layer of your MERN stack application. You can further extend these schemas with additional fields or methods as needed.
+
+c. API Routes
+Authentication:
+POST /auth/register: Register new users.
+POST /auth/login: Login and issue JWT.
+POST /auth/logout: Invalidate the token.
+Users:
+GET /users: Get all users (admin only).
+DELETE /users/:id: Delete a user (admin only).
+Posts:
+GET /posts: Get all posts (with pagination and filtering).
+POST /posts: Create a new post (author only).
+GET /posts/:id: Get a specific post.
+PUT /posts/:id: Update a post (author of the post).
+DELETE /posts/:id: Delete a post (author of the post or admin).
+Comments:
+POST /posts/:id/comments: Add a comment to a post.
+GET /posts/:id/comments: Get comments for a post.
+PUT /comments/:id/approve: Approve a comment (admin only).
+DELETE /comments/:id: Delete a comment (admin only).
+
+
+d. Middleware
+Authentication: Middleware to verify JWT and user roles.
+Error Handling: Global error handler for catching and responding to errors.
+
+
+Example:-
+const jwt = require('jsonwebtoken');
+
+exports.authMiddleware = (req, res, next) => {
+  const token = req.header('Authorization').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: 'Token is not valid' });
+  }
+};
+
+
+e. Advanced Features
+Search & Filtering: Implement search by title/content, filter by author/status.
+Advanced Queries: Fetch top 5 commented posts, count posts per author.
+File Uploads: Use Multer for handling image uploads.
+Caching (Optional): Implement Redis for caching.
+
+
+f. Testing
+Unit Tests: Write tests for models, controllers, and routes using Mocha/Chai.
+Integration Tests: Test API endpoints.
+
+
